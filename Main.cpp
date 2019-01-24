@@ -7,7 +7,6 @@
 // Runs in serial mode if executed on a single processor.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 //===================== Includes =======================
 #include <stdio.h>
 #include <stdbool.h>
@@ -15,7 +14,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <limits.h>
-
 // If compiling in Visual Studio, use the included 'mpi.h' file.
 #if defined(_MSC_VER)
 #include "libs/MPI/Include/mpi.h"
@@ -66,7 +64,6 @@ struct BOARD {
 	int totalCost;
 };
 
-
 //====================== Function Prototypes ============================
 int cmpBoardCosts(const void * a, const void * b);
 BOARD geneticSearchSerial();
@@ -78,12 +75,9 @@ void mutateQueen(BOARD * board);
 void crossover(BOARD * p1, BOARD * p2, BOARD * c1, BOARD * c2);
 void printParameters(void);
 
-
 //==================== Function Implementations ======================
-
 // Program entry point.
 int main(int argc, char * argv[]) {
-
 	// Initialise MPI.
 	MPI_Init(NULL, NULL);
 	// Get the number of processes.
@@ -97,7 +91,6 @@ int main(int argc, char * argv[]) {
 		BOARD serial_solution = geneticSearchSerial();
 		return 0;
 	}
-
 	// Otherwise, if multiple processes were detected, run in parallel mode.
 	// Get the rank of the process.
 	int world_rank;
@@ -108,41 +101,29 @@ int main(int argc, char * argv[]) {
 		printf("Master: %d processes detected, running the genetic search in parallel mode.\n", num_processes);
 	}
 	geneticSearchParallel();
-
 	MPI_Finalize();
 	return 0;
 }
 
-
-
-
-
 // Execute the genetic search on a serial machine (one computer).
 // Returns the solution 'BOARD'.
-
 BOARD geneticSearchSerial() {
 	// Keep track of the time elapsed.
 	srand((unsigned int)time(NULL));
 	clock_t clk_start = clock();
-
 	// The population of chess boards.
 	BOARD population[NUM_BOARDS];
-
 	// Fill each board with queens.
 	// initialise() also calls computeCost() to calculate each BOARD's totalCost attribute.
 	for (int i = 0; i < NUM_BOARDS; i++) {
 		initialise(&population[i]);
 	}
-
 	// If a solution is found, exits the while-loop.
 	bool solution_found = false;
-
 	// Keep searching until a solution is found.
 	while (!solution_found) {
-
 		// Sort the boards in ascending order of their totalCost.
 		qsort(population, NUM_BOARDS, sizeof(*population), cmpBoardCosts);
-
 		// For a number of reproductions.
 		for (int m = 0; m < MAX_REPRODUCTIONS; m++) {
 			// Select two parents randomly from the fittest portion of the population.
@@ -189,12 +170,10 @@ BOARD geneticSearchSerial() {
 				solution_found = true;
 				return childTwo;
 			}
-
 			// Add the two child boards back into the population.
 			// They replace the least fit boards at the bottom-end of the sorted 'population' array.
 			population[NUM_BOARDS - (2 * m) - 1] = childOne;
 			population[NUM_BOARDS - (2 * m) - 2] = childTwo;
-
 		}///// for(max-number-of-generations) /////
 
 	}///// while(!solution_found) /////
@@ -204,42 +183,28 @@ BOARD geneticSearchSerial() {
 
 }///// geneticSearchSerial() /////
 
-
-
-
-
-
-
-
 // Execute the genetic search in parallel (across multiple computers).
 // This function uses the MPI library to send and receive messages.
 // Returns the solution BOARD.
-
 void geneticSearchParallel() {
-	
 	// Get the world rank of the process.
 	int world_rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-
 	// If the Master (0) process.
 	if (world_rank == 0) {
 		// Get the total world size.
 		int world_size;
 		MPI_Comm_size(MPI_COMM_WORLD, &world_size);	
-		
 		// Keep track of the time elapsed.
 		srand((unsigned int)time(NULL));
 		clock_t clk_start = clock();
-
 		// The population of chess boards.
 		BOARD population[NUM_BOARDS];
-
 		// Fill each board with queens.
 		// initialise() also calls computeCost() to calculate each BOARD's totalCost attribute.
 		for (int i = 0; i < NUM_BOARDS; i++) {
 			initialise(&population[i]);
 		}		
-
 		// Send out some boards to the slave processes.
 		// For each slave process (1..world_size).
 		for (int i = 1; i < world_size; i++) {
@@ -253,7 +218,6 @@ void geneticSearchParallel() {
 
 		// Keep track of the best cost so far.
 		int best_cost = INT_MAX;
-
 		// Keep looping until solution board is found.
 		while (true) {
 			// Sort the current population in ascending order of cost.
@@ -286,12 +250,11 @@ void geneticSearchParallel() {
 				population[NUM_BOARDS - 1] = recv_board;
 			}
 		} ////// while(solution not found) ///////
-
+		
 		// Print the solution board, and time elapsed.
 		printBoard(&population[0]);
 		printf("\n\nSolution found after %.3lfs.\n", NQUEENS, (double)(clock() - clk_start) / CLOCKS_PER_SEC);
 		printParameters();
-
 		// Shutdown all of the slave processes.
 		// The slave is waiting to send and receive a board, so send each slave a dummy board, with a 'MPITAG_SHUTDOWN' tag.
 		for (int i = 1; i < world_size; i++) {
@@ -304,19 +267,15 @@ void geneticSearchParallel() {
 
 	}/////// if (master process) ////////
 
-
 	// Otherwise, if slave process.
 	else if (world_rank != 0) {
-
 		// Store the best-fitness board so far.
 		BOARD bestBoard;
 		bestBoard.totalCost = INT_MAX;
 		// Create an array to hold the boards received from the master.
 		BOARD slaveBoards[BOARDS_PER_SLAVE];
-
 		// Run in a loop until ordered to shutdown by the master.
 		while (true) {
-
 			// Receive the boards from the master.
 			for (int i = 0; i < BOARDS_PER_SLAVE; i++) {
 				MPI_Status status;
@@ -333,12 +292,10 @@ void geneticSearchParallel() {
 					bestBoard = slaveBoards[i];
 				}
 			}
-
 			// For a maximum number of iterations, try and generate a board of a lesser cost than the one stored in 'bestBoard'.
 			// This is achieved through multiple mutation and crossover attempts.
 			for (int i = 0; i < SLAVE_ITERATIONS_PER_CYCLE; i++) {
 				BOARD childOne, childTwo;
-
 				// For each board in slaveBoards.
 				for (int b = 0; b < BOARDS_PER_SLAVE; b++) {
 					// Do a crossover operation.
@@ -353,7 +310,6 @@ void geneticSearchParallel() {
 					if (childTwo.totalCost < bestBoard.totalCost) {
 						bestBoard = childTwo;
 					}
-
 					// Perform some mutations and see if they improve the board's cost.
 					for (int m = 0; m < MUTATIONS_PER_SLAVE_ITERATION; m++) {
 						mutateQueen(&childOne);
@@ -380,17 +336,9 @@ void geneticSearchParallel() {
 
 		}////// while (true) ///////
 
-
 	}////// else (slave process) //////
 
 }///// geneticSearchParallel() /////
-
-
-
-
-
-
-
 
 // A crossover function for making two offspring (c1, c2) from two parents (p1, p2).
 // Uses the PMX crossover method (partially matched crossover).
@@ -404,13 +352,11 @@ void crossover(BOARD * p1, BOARD * p2, BOARD * c1, BOARD * c2) {
 	// Get the minimum and maximum of the crossover points.
 	int min = (pos1 > pos2) ? pos2 : pos1;
 	int max = (pos1 > pos2) ? pos1 : pos2;
-
 	// Set uninitialised child values to -1
 	for (int i = 0; i < NQUEENS; i++) {
 		c1->q[i] = -1;
 		c2->q[i] = -1;
 	}
-
 	// Child 1 gets a portion from parent 1.
 	for (int i = min; i < max; i++) {
 		c1->q[i] = p1->q[i];
@@ -419,7 +365,6 @@ void crossover(BOARD * p1, BOARD * p2, BOARD * c1, BOARD * c2) {
 	for (int i = min; i < max; i++) {
 		c2->q[i] = p2->q[i];
 	}
-
 	////////////////////////// Check for duplicates in c1 ////////////////////////////////
 	// Find values in p2 that are not already in c1.
 	for (int i = min; i < max; i++) {
@@ -458,7 +403,6 @@ void crossover(BOARD * p1, BOARD * p2, BOARD * c1, BOARD * c2) {
 					index = p2ind;
 				}
 			}
-
 		}//////if(not in child)//////
 
 	}////for(each sqaure in p1 within min..max)//////
@@ -469,7 +413,6 @@ void crossover(BOARD * p1, BOARD * p2, BOARD * c1, BOARD * c2) {
 			c1->q[i] = p2->q[i];
 		}
 	}
-
 
 	////////////////////////// Check for duplicates in c2 ////////////////////////////////
 	// Find values in p1 that are not already in c2.
@@ -523,10 +466,6 @@ void crossover(BOARD * p1, BOARD * p2, BOARD * c1, BOARD * c2) {
 
 }
 
-
-
-
-
 // The cost function computes the 'totalCost' attribute for 'board'.
 // A board's cost is the total number of conflicts or 'attacks' that can occur between queens on the board.
 void computeCosts(BOARD * board) {
@@ -537,13 +476,11 @@ void computeCosts(BOARD * board) {
 		left_diagonal[i] = 0;
 		right_diagonal[i] = 0;
 	}
-
 	// Increment each diagonal counter if a queen is present.
 	for (int i = 0; i < NQUEENS; i++) {
 		left_diagonal[i + board->q[i]]++;
 		right_diagonal[NQUEENS - 1 - i + board->q[i]]++;
 	}
-
 	// If a diagonal-counter's value is greater than 1, there are at least two queens on that diagonal,
 	// and therefore, a conflict exists between them, so increment 'sum' appropriately.
 	int sum = 0;
@@ -558,9 +495,7 @@ void computeCosts(BOARD * board) {
 		sum += counter;
 	}
 	board->totalCost = sum;
-
 }
-
 
 // Comparsion function for qsort(). Compares two boards' 'totalCost' attributes.
 int cmpBoardCosts(const void * a, const void * b) {
@@ -568,8 +503,6 @@ int cmpBoardCosts(const void * a, const void * b) {
 	BOARD * bb = (BOARD *)b;
 	return (ab->totalCost) - (bb->totalCost);
 }
-
-
 
 // Places queens on a new board.
 // Then calls computeCost() to fill each board's 'cost' attribute.
@@ -608,8 +541,6 @@ void printBoard(const BOARD * board) {
 	printf("\n}\n");
 }
 
-
-
 // Swaps two queens in 'board' at random.
 // Equivalent to swapping the queen's columns.
 void mutateQueen(BOARD * board) {
@@ -625,7 +556,6 @@ void mutateQueen(BOARD * board) {
 	board->q[index2] = temp;
 }
 
-
 // Prints the parameters used for the search.
 void printParameters(void) {
 	printf("Parameters:\n"
@@ -635,8 +565,6 @@ void printParameters(void) {
 			NQUEENS, NUM_BOARDS, POPULATION_THRESHOLD, GN_MUTATION_RATE, MAX_REPRODUCTIONS,
 			BOARDS_PER_SLAVE, SLAVE_ITERATIONS_PER_CYCLE, MUTATIONS_PER_SLAVE_ITERATION);
 }
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // END OF FILE
