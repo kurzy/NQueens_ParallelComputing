@@ -2,14 +2,13 @@
 A C/C++ program to solve the N-Queens problem using parallel computing
 
 ## Requirements
+* MPI enabled computing cluster
 * g++ compiler
-* `make` utility
 
 ## Compiling
-* Windows
-  * `make`
-* OS X
-  * `make -f mac_makefile`
- 
-## Executing
+* Compile 'Main.cpp' program
+ * `mpiCC Main.cpp -o gn`
 
+## Executing
+* Run program on 4 slots (1 node)
+* `mpirun --hostfile /etc/mpi_nodes --host [your_MPI_host] gn` 
