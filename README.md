@@ -7,7 +7,7 @@ A C/C++ program to solve the N-Queens problem using parallel computing
 
 ## Compiling
 * Compile 'Main.cpp' program
- * `mpiCC Main.cpp -o gn`
+  * `mpiCC Main.cpp -o gn`
 
 ## Executing
 * Run program on 4 slots (1 node)
